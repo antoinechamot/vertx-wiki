@@ -9,7 +9,9 @@ import org.slf4j.LoggerFactory;
 
 import com.github.rjeschke.txtmark.Processor;
 
+import io.vertx.WikiDatabaseVerticle;
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServer;
@@ -27,6 +29,28 @@ import io.vertx.ext.web.templ.freemarker.FreeMarkerTemplateEngine;
 
 public class MainVerticle extends AbstractVerticle{
 	
+	
+	public void start(Promise<Void> promise) throws Exception {
+		Promise<String> dbVerticleDeployement = Promise.promise();
+		vertx.deployVerticle(new WikiDatabaseVerticle(), dbVerticleDeployement);
+		
+		dbVerticleDeployement.future().compose(id -> {
+			Promise<String> httpVerticleDeployement = Promise.promise();
+			vertx.deployVerticle("io.vertx.HttpServerVerticle", new DeploymentOptions().setInstances(2),httpVerticleDeployement);
+			
+			return httpVerticleDeployement.future();
+		}).setHandler(ar -> {
+			if(ar.succeeded()) {
+				promise.complete();
+			} else {
+				promise.fail(ar.cause());
+			}
+		});
+	}
+	
+	
+	
+	/*
 	private static final String SQL_CREATE_PAGES_TABLE = "create table if not exists Pages (Id integer identity primary key, Name varchar(255) unique, Content clob)";
 	private static final String SQL_GET_PAGE = "select Id, Content from Pages where Name = ?";
 	private static final String SQL_CREATE_PAGE = "insert into Pages values (NULL, ?, ?)";
@@ -275,5 +299,5 @@ public class MainVerticle extends AbstractVerticle{
 		});
 	}
 	
-	
+	*/
 }
