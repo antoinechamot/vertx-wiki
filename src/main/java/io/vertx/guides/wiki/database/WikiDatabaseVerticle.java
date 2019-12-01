@@ -1,26 +1,19 @@
-package io.vertx;
+package io.vertx.guides.wiki.database;
 
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Properties;
-import java.util.stream.Collectors;
 
-import org.omg.CORBA.RepositoryIdHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
-import io.vertx.core.eventbus.Message;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.jdbc.JDBCClient;
-import io.vertx.ext.sql.FetchDirection;
-import io.vertx.ext.sql.ResultSet;
-import io.vertx.ext.sql.SQLConnection;
+import io.vertx.serviceproxy.ServiceBinder;
 
 public class WikiDatabaseVerticle extends AbstractVerticle{
 	
@@ -28,34 +21,41 @@ public class WikiDatabaseVerticle extends AbstractVerticle{
 	  public static final String CONFIG_WIKIDB_JDBC_DRIVER_CLASS = "wikidb.jdbc.driver_class";
 	  public static final String CONFIG_WIKIDB_JDBC_MAX_POOL_SIZE = "wikidb.jdbc.max_pool_size";
 	  public static final String CONFIG_WIKIDB_SQL_QUERIES_RESOURCE_FILE = "wikidb.sqlqueries.resource.file";
-
 	  public static final String CONFIG_WIKIDB_QUEUE = "wikidb.queue";
 	  
 	  private static final Logger LOGGER = LoggerFactory.getLogger(WikiDatabaseVerticle.class);
 
-	  private enum SqlQuery {
-		  CREATE_PAGES_TABLE,
-		  ALL_PAGES,
-		  GET_PAGE,
-		  CREATE_PAGE,
-		  SAVE_PAGE,
-		  DELETE_PAGE
+
+
+  
+	  
+	  
+	  public void start(Promise<Void> promise) throws Exception {
+		  
+		  HashMap<SqlQuery, String> sqlQueries =  loadSqlQueries();
+		 
+		  
+		  JDBCClient dbClient = JDBCClient.createShared(vertx, new JsonObject()
+				    .put("url", config().getString(CONFIG_WIKIDB_JDBC_URL, "jdbc:hsqldb:file:db/wiki"))
+				    .put("driver_class", config().getString(CONFIG_WIKIDB_JDBC_DRIVER_CLASS, "org.hsqldb.jdbcDriver"))
+				    .put("max_pool_size", config().getInteger(CONFIG_WIKIDB_JDBC_MAX_POOL_SIZE, 30)));
+		  
+		  
+		 WikiDatabaseService.create(dbClient, sqlQueries, ready -> {
+			 if(ready.succeeded()) {
+				 ServiceBinder binder = new ServiceBinder(vertx);
+				 binder.setAddress(CONFIG_WIKIDB_QUEUE)
+				 .register(WikiDatabaseService.class, ready.result());
+				 promise.complete();
+			 }else {
+				 promise.fail(ready.cause());
+			 }
+		 });
 	  }
-	  
-	  public enum ErrorCodes {
-		  NO_ACTION_SPECIFIED,
-		  BAD_ACTION,
-		  DB_ERROR
-		}
-
-
-	  
-	  private final HashMap<SqlQuery, String> sqlQueries = new HashMap<>();
-	  
-	  private JDBCClient dbClient;
+	 
 	  
 	  
-	  private void loadSqlQueries() throws IOException {
+	  private HashMap<SqlQuery, String> loadSqlQueries() throws IOException {
 		  
 		  String queriesFile = config().getString(CONFIG_WIKIDB_SQL_QUERIES_RESOURCE_FILE);
 		  InputStream queriesInputStream;
@@ -69,45 +69,20 @@ public class WikiDatabaseVerticle extends AbstractVerticle{
 		  queriesProps.load(queriesInputStream);
 		  queriesInputStream.close();
 		  
-		  
+		  HashMap<SqlQuery, String> sqlQueries = new HashMap<>();
 		  sqlQueries.put(SqlQuery.CREATE_PAGES_TABLE, queriesProps.getProperty("create-pages-table"));
 		  sqlQueries.put(SqlQuery.ALL_PAGES, queriesProps.getProperty("all-pages"));
 		  sqlQueries.put(SqlQuery.GET_PAGE, queriesProps.getProperty("get-page"));
 		  sqlQueries.put(SqlQuery.CREATE_PAGE, queriesProps.getProperty("create-page"));
 		  sqlQueries.put(SqlQuery.SAVE_PAGE, queriesProps.getProperty("save-page"));
 		  sqlQueries.put(SqlQuery.DELETE_PAGE, queriesProps.getProperty("delete-page"));
+		  sqlQueries.put(SqlQuery.ALL_PAGES_DATA, queriesProps.getProperty("all-pages-data"));
+		  return sqlQueries;
 		  
 	  }
 	  
-	  public void start(Promise<Void> promise) throws Exception {
-		  loadSqlQueries();
-		  
-		  dbClient = JDBCClient.createShared(vertx, new JsonObject()
-				    .put("url", config().getString(CONFIG_WIKIDB_JDBC_URL, "jdbc:hsqldb:file:db/wiki"))
-				    .put("driver_class", config().getString(CONFIG_WIKIDB_JDBC_DRIVER_CLASS, "org.hsqldb.jdbcDriver"))
-				    .put("max_pool_size", config().getInteger(CONFIG_WIKIDB_JDBC_MAX_POOL_SIZE, 30)));
-		  
-		  
-		  dbClient.getConnection(ar -> {
-			 if(ar.failed()) {
-				 LOGGER.error("Could not open a database connection", ar.cause());
-				 promise.fail(ar.cause());
-			 } else {
-				 SQLConnection connection = ar.result();
-				 connection.execute(sqlQueries.get(SqlQuery.CREATE_PAGES_TABLE), create -> {
-					 connection.close();
-					 if(create.failed()) {
-						 LOGGER.error("Database preparation error", create.cause());
-						 promise.fail(create.cause());
-					 }else {
-						 vertx.eventBus().consumer(config().getString(CONFIG_WIKIDB_QUEUE, "wikidb.queue"), this::onMessage);
-						 promise.complete();
-					 }
-				 });
-			 }
-		  });
-	  }
 	  
+	  /*
 	  
 	  public void onMessage(Message<JsonObject> message) {
 		  if(!message.headers().contains("action")) {
@@ -232,6 +207,6 @@ public class WikiDatabaseVerticle extends AbstractVerticle{
 		  message.fail(ErrorCodes.DB_ERROR.ordinal(), cause.getMessage());
 	  }
 	  
-	  
+	  */
 	  
 }
