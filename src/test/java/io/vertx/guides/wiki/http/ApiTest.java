@@ -11,6 +11,7 @@ import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.net.JksOptions;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -34,10 +35,16 @@ public class ApiTest {
 		JsonObject dbConf = new JsonObject()
 				.put(WikiDatabaseVerticle.CONFIG_WIKIDB_JDBC_URL, "jdbc:hsqldb:mem:testdb;shutdown=true")
 				.put(WikiDatabaseVerticle.CONFIG_WIKIDB_JDBC_MAX_POOL_SIZE, 4);
+		vertx.deployVerticle(new AuthInitializerVerticle(),new DeploymentOptions().setConfig(dbConf), context.asyncAssertSuccess());
 		vertx.deployVerticle(new WikiDatabaseVerticle(), new DeploymentOptions().setConfig(dbConf),context.asyncAssertSuccess());
 		vertx.deployVerticle(new HttpServerVerticle(), context.asyncAssertSuccess());
 		
-		webClient = WebClient.create(vertx, new WebClientOptions().setDefaultHost("localhost").setDefaultPort(8080));
+		webClient = WebClient.create(vertx, 
+				new WebClientOptions()
+				.setDefaultHost("localhost")
+				.setDefaultPort(8080)
+				.setSsl(true)
+				.setTrustOptions(new JksOptions().setPath("server-keystore.jks").setPassword("secret")));
 		
 	}
 	

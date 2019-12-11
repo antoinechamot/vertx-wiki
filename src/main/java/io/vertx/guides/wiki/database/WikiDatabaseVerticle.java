@@ -13,13 +13,12 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.jdbc.JDBCClient;
+import io.vertx.guides.wiki.DatabaseConstants;
 import io.vertx.serviceproxy.ServiceBinder;
 
-public class WikiDatabaseVerticle extends AbstractVerticle{
+public class WikiDatabaseVerticle extends AbstractVerticle implements DatabaseConstants{
 	
-	  public static final String CONFIG_WIKIDB_JDBC_URL = "wikidb.jdbc.url";
-	  public static final String CONFIG_WIKIDB_JDBC_DRIVER_CLASS = "wikidb.jdbc.driver_class";
-	  public static final String CONFIG_WIKIDB_JDBC_MAX_POOL_SIZE = "wikidb.jdbc.max_pool_size";
+
 	  public static final String CONFIG_WIKIDB_SQL_QUERIES_RESOURCE_FILE = "wikidb.sqlqueries.resource.file";
 	  public static final String CONFIG_WIKIDB_QUEUE = "wikidb.queue";
 	  
@@ -36,9 +35,9 @@ public class WikiDatabaseVerticle extends AbstractVerticle{
 		 
 		  
 		  JDBCClient dbClient = JDBCClient.createShared(vertx, new JsonObject()
-				    .put("url", config().getString(CONFIG_WIKIDB_JDBC_URL, "jdbc:hsqldb:file:db/wiki"))
-				    .put("driver_class", config().getString(CONFIG_WIKIDB_JDBC_DRIVER_CLASS, "org.hsqldb.jdbcDriver"))
-				    .put("max_pool_size", config().getInteger(CONFIG_WIKIDB_JDBC_MAX_POOL_SIZE, 30)));
+				    .put("url", config().getString(CONFIG_WIKIDB_JDBC_URL, DEFAULT_WIKIDB_JDBC_URL))
+				    .put("driver_class", config().getString(CONFIG_WIKIDB_JDBC_DRIVER_CLASS, DEFAULT_WIKIDB_JDBC_DRIVER_CLASS))
+				    .put("max_pool_size", config().getInteger(CONFIG_WIKIDB_JDBC_MAX_POOL_SIZE, DEFAULT_JDBC_MAX_POOL_SIZE)));
 		  
 		  
 		 WikiDatabaseService.create(dbClient, sqlQueries, ready -> {

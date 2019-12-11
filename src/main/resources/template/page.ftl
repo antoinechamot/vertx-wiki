@@ -5,8 +5,10 @@
   <div class="col-md-12 mt-1">
       <span class="float-right">
         <a class="btn btn-outline-primary" href="/" role="button" aria-pressed="true">Home</a>
+        <#if canSavePage>
         <button class="btn btn-outline-warning" type="button" data-toggle="collapse"
                 data-target="#editor" aria-expanded="false" aria-controls="editor">Edit</button>
+         </#if>
       </span>
     <h1 class="display-4">
       <span class="text-muted">{</span>
@@ -19,6 +21,7 @@
   ${content}
   </div>
 
+  <#if canSavePage>
   <div class="col-md-12 collapsable collapse clearfix" id="editor">
     <form action="/save" method="post">
       <div class="form-group">
@@ -28,11 +31,12 @@
         <textarea class="form-control" id="markdown" name="markdown" rows="15">${rawContent}</textarea>
       </div>
       <button type="submit" class="btn btn-primary">Save</button>
-    <#if id != -1>
+    <#if id != -1 && canDeletePage>
       <button type="submit" formaction="/delete" class="btn btn-danger float-right">Delete</button>
     </#if>
     </form>
   </div>
+  </#if>
 
   <div class="col-md-12 mt-1">
     <hr class="mt-1">

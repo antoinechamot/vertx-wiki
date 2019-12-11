@@ -1,17 +1,5 @@
-/*C6*/SET SCHEMA PUBLIC
+/*C5*/SET SCHEMA PUBLIC
 create table if not exists Pages (Id integer identity primary key, Name varchar(255) unique, Content clob)
-/*C1*/SET SCHEMA SYSTEM_LOBS
-INSERT INTO LOB_IDS VALUES(14,21,0,40)
-ALTER SEQUENCE SYSTEM_LOBS.LOB_ID RESTART WITH 15
-COMMIT
-DELETE FROM BLOCKS WHERE BLOCK_ADDR=13
-INSERT INTO BLOCKS VALUES(13,1,0)
-INSERT INTO BLOCKS VALUES(14,2147483633,0)
-DELETE FROM BLOCKS WHERE BLOCK_ADDR=13
-INSERT INTO LOBS VALUES(13,1,0,14)
-COMMIT
-/*C6*/INSERT INTO PAGES VALUES(3,'toto',14)
-SET SCHEMA SYSTEM_LOBS
-DELETE FROM LOB_IDS WHERE LOB_ID=14
-INSERT INTO LOB_IDS VALUES(14,21,1,40)
-COMMIT
+create table if not exists user (username varchar(255), password varchar(255), password_salt varchar(255))
+create table if not exists user_roles (username varchar(255), role varchar(255))
+create table if not exists roles_perms (role varchar(255), perm varchar(255))
