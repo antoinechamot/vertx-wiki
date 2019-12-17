@@ -77,10 +77,9 @@ public class HttpServerVerticle extends AbstractVerticle implements DatabaseCons
 
 		Router router = Router.router(vertx);
 		
-		//router.route().handler(CookieHandler.create());
 		router.route().handler(BodyHandler.create());
 		router.route().handler(SessionHandler.create(LocalSessionStore.create(vertx)).setAuthProvider(auth));
-		//router.route().handler(UserSessionHandler.create(auth));
+
 		
 		AuthHandler authHandler = RedirectAuthHandler.create(auth,"/login");
 		router.route("/").handler(authHandler);
@@ -92,14 +91,14 @@ public class HttpServerVerticle extends AbstractVerticle implements DatabaseCons
 		
 		router.get("/").handler(this::indexHandler);
 		router.get("/wiki/:page").handler(this::pageRenderingHandler);
-		router.post().handler(BodyHandler.create());
+		//router.post().handler(BodyHandler.create());
 		router.post("/save").handler(this::pageUpdateHandler);
 		router.post("/create").handler(this::pageCreateHandler);
 		router.post("/delete").handler(this::pageDeletionHandler);
 		router.get("/backup").handler(this::backupHandler);
 		
 		router.get("/login").handler(this::loginHandler);
-		router.get("/login-auth").handler(FormLoginHandler.create(auth));
+		router.post("/login-auth").handler(FormLoginHandler.create(auth));
 		router.get("/logout").handler(context -> {
 			context.clearUser();
 			context.response().setStatusCode(302)
