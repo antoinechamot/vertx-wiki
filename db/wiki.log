@@ -1,4 +1,4 @@
-/*C5*/SET SCHEMA PUBLIC
+/*C3*/SET SCHEMA PUBLIC
 create table if not exists Pages (Id integer identity primary key, Name varchar(255) unique, Content clob)
 create table if not exists user (username varchar(255), password varchar(255), password_salt varchar(255))
 create table if not exists user_roles (username varchar(255), role varchar(255))
