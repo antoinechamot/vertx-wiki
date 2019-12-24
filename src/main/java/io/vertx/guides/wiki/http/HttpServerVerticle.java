@@ -10,40 +10,47 @@ import org.slf4j.LoggerFactory;
 
 import com.github.rjeschke.txtmark.Processor;
 
-import io.vertx.core.AbstractVerticle;
+import io.reactivex.Single;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
-import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.JksOptions;
 import io.vertx.ext.auth.KeyStoreOptions;
-import io.vertx.ext.auth.User;
-import io.vertx.ext.auth.jdbc.JDBCAuth;
-import io.vertx.ext.auth.jwt.JWTAuth;
 import io.vertx.ext.auth.jwt.JWTAuthOptions;
-import io.vertx.ext.jdbc.JDBCClient;
 import io.vertx.ext.jwt.JWTOptions;
-import io.vertx.ext.web.Router;
-import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.client.HttpResponse;
-import io.vertx.ext.web.client.WebClient;
+
 import io.vertx.ext.web.client.WebClientOptions;
-import io.vertx.ext.web.codec.BodyCodec;
-import io.vertx.ext.web.handler.AuthHandler;
-import io.vertx.ext.web.handler.BodyHandler;
-import io.vertx.ext.web.handler.CookieHandler;
-import io.vertx.ext.web.handler.FormLoginHandler;
-import io.vertx.ext.web.handler.JWTAuthHandler;
-import io.vertx.ext.web.handler.RedirectAuthHandler;
-import io.vertx.ext.web.handler.SessionHandler;
-import io.vertx.ext.web.handler.UserSessionHandler;
-import io.vertx.ext.web.sstore.LocalSessionStore;
-import io.vertx.ext.web.templ.freemarker.FreeMarkerTemplateEngine;
 import io.vertx.guides.wiki.DatabaseConstants;
 import io.vertx.guides.wiki.database.WikiDatabaseService;
+import io.vertx.reactivex.core.AbstractVerticle;
+import io.vertx.reactivex.core.http.HttpServer;
+import io.vertx.reactivex.ext.auth.User;
+import io.vertx.reactivex.ext.auth.jdbc.JDBCAuth;
+import io.vertx.reactivex.ext.auth.jwt.JWTAuth;
+import io.vertx.reactivex.ext.jdbc.JDBCClient;
+import io.vertx.reactivex.ext.web.Router;
+import io.vertx.reactivex.ext.web.RoutingContext;
+import io.vertx.reactivex.ext.web.client.HttpResponse;
+import io.vertx.reactivex.ext.web.client.WebClient;
+import io.vertx.reactivex.ext.web.codec.BodyCodec;
+import io.vertx.reactivex.ext.web.handler.AuthHandler;
+import io.vertx.reactivex.ext.web.handler.BodyHandler;
+import io.vertx.reactivex.ext.web.handler.FormLoginHandler;
+import io.vertx.reactivex.ext.web.handler.JWTAuthHandler;
+import io.vertx.reactivex.ext.web.handler.RedirectAuthHandler;
+import io.vertx.reactivex.ext.web.handler.SessionHandler;
+import io.vertx.reactivex.ext.web.sstore.LocalSessionStore;
+import io.vertx.reactivex.ext.web.templ.freemarker.FreeMarkerTemplateEngine;
+
+
+
+
+
+
+
 
 public class HttpServerVerticle extends AbstractVerticle implements DatabaseConstants {
 
@@ -66,7 +73,7 @@ public class HttpServerVerticle extends AbstractVerticle implements DatabaseCons
 		webClient = WebClient.create(vertx,new WebClientOptions().setSsl(true).setUserAgent("vert-x3"));
 
 		wikiDbQueue = config().getString(CONFIG_WIKIDB_QUEUE, "wikidb.queue");
-		dbService = WikiDatabaseService.createProxy(vertx, wikiDbQueue);
+		dbService = WikiDatabaseService.createProxy(vertx.getDelegate(), wikiDbQueue);
 		
 		
 		JDBCClient dbClient = JDBCClient.createShared(vertx, new JsonObject()
@@ -128,7 +135,24 @@ public class HttpServerVerticle extends AbstractVerticle implements DatabaseCons
 			JsonObject creds = new JsonObject()
 					.put("username", context.request().getHeader("login"))
 					.put("password", context.request().getHeader("password"));
-			auth.authenticate(creds, authResult -> {
+			
+			auth.rxAuthenticate(creds).flatMap(user -> {
+				Single<Boolean> create = user.rxIsAuthorised("create");
+				Single<Boolean> delete = user.rxIsAuthorised("delete");
+				Single<Boolean> update = user.rxIsAuthorised("update");
+				
+				return Single.zip(create, delete, update, (canCreate,canDelete,canUpdate) -> {
+					return jwtAuth.generateToken(new JsonObject()
+							.put("username", context.request().getHeader("login"))
+							.put("canCreate", canCreate)
+							.put("canDelete", canDelete)
+							.put("canUpdate", canUpdate), 
+							new JWTOptions().setSubject("Wiki API").setIssuer("Vert.x"));
+				});
+			}).subscribe(token -> {
+				context.response().putHeader("Content-Type", "text/plain").end(token);
+			}, t-> context.fail(401));
+			/*auth.authenticate(creds, authResult -> {
 				if(authResult.succeeded()) {
 					User user = authResult.result();
 					user.isAuthorised("create", canCreate -> {
@@ -147,7 +171,7 @@ public class HttpServerVerticle extends AbstractVerticle implements DatabaseCons
 				} else {
 					context.fail(401);
 				}
-			});
+			});*/
 		});
 		
 		

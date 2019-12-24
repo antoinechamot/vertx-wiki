@@ -1,5 +1,7 @@
 package io.vertx.guides.wiki.http;
 
+import javax.swing.JScrollBar;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -26,6 +28,7 @@ public class ApiTest {
 	
 	private Vertx vertx;
 	private WebClient webClient;
+	private String jwtTokenHeaderValue;
 	
 
 	@Before
@@ -52,18 +55,38 @@ public class ApiTest {
 	public void play_with_api(TestContext context) {
 		Async async = context.async();
 		
+		Promise<HttpResponse<String>> tokenPromise = Promise.promise();
+		webClient.get("/api/token")
+		.putHeader("login", "foo")
+		.putHeader("password", "bar")
+		.as(BodyCodec.string())
+		.send(tokenPromise);
+		
+		Future<HttpResponse<String>> tokenFuture = tokenPromise.future();
+		
 		JsonObject page = new JsonObject()
 				.put("name", "Sample")
 				.put("markdown", "# A page");
+
+		Future<HttpResponse<JsonObject>> postPageFuture = tokenFuture.compose(tokenResponse -> {
+			
+			jwtTokenHeaderValue = "Bearer " + tokenResponse.body();
+			Promise<HttpResponse<JsonObject>> postPagePromise = Promise.promise();
+			
+			webClient.post("/api/pages")
+			.putHeader("Authorization", jwtTokenHeaderValue)
+			.as(BodyCodec.jsonObject())
+			.sendJson(page, postPagePromise);
+			
+			return postPagePromise.future();
+			
+		});
+				
 		
-		Promise<HttpResponse<JsonObject>> postPagePromise = Promise.promise();
-		webClient.post("/api/pages")
-		.as(BodyCodec.jsonObject())
-		.sendJson(page, postPagePromise);
-		
-		Future<HttpResponse<JsonObject>> getPageFuture = postPagePromise.future().compose(resp -> {
+		Future<HttpResponse<JsonObject>> getPageFuture = postPageFuture.compose(resp -> {
 			Promise<HttpResponse<JsonObject>> promise = Promise.promise();
 			webClient.get("/api/pages")
+			.putHeader("Authorization", jwtTokenHeaderValue)
 			.as(BodyCodec.jsonObject())
 			.send(promise);
 			return promise.future();
@@ -78,6 +101,7 @@ public class ApiTest {
 					.put("id", 0)
 					.put("markdown", "Oh Yea!");
 			webClient.put("/api/pages/0")
+			.putHeader("Authorization", jwtTokenHeaderValue)
 			.as(BodyCodec.jsonObject())
 			.sendJsonObject(data, promise);
 			return promise.future();
@@ -86,6 +110,7 @@ public class ApiTest {
 			context.assertTrue(resp.body().getBoolean("success"));
 			Promise<HttpResponse<JsonObject>> promise = Promise.promise();
 			webClient.delete("/api/pages/0")
+			.putHeader("Authorization", jwtTokenHeaderValue)
 			.as(BodyCodec.jsonObject())
 			.send(promise);
 			

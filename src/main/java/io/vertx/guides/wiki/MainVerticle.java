@@ -1,6 +1,8 @@
 package io.vertx.guides.wiki;
 
-import io.vertx.core.AbstractVerticle;
+import io.vertx.reactivex.core.AbstractVerticle;
+import io.vertx.reactivex.core.SingleHelper;
+import io.reactivex.Single;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -13,9 +15,22 @@ public class MainVerticle extends AbstractVerticle{
 	
 	public void start(Promise<Void> promise) throws Exception {
 
-		Promise<String> dbDeploymentPromise = Promise.promise();
-		vertx.deployVerticle(new WikiDatabaseVerticle(), dbDeploymentPromise);
+	
+		
+		Single<String> dbVerticleDeployment = vertx.rxDeployVerticle("io.vertx.guides.wiki.database.WikiDatabaseVerticle");
+		
+		dbVerticleDeployment.flatMap(id -> {
+			Single<String> httpVerticleDeployment = vertx.rxDeployVerticle("io.vertx.guides.wiki.http.HttpServerVerticle",new DeploymentOptions().setInstances(2));
+			return httpVerticleDeployment;
+		})
+		.flatMap(id -> vertx.rxDeployVerticle("io.vertx.guides.wiki.http.AuthInitializerVerticle"))
+		.subscribe(id -> promise.complete(), promise::fail);
+		
 
+		/*
+		 * Promise<String> dbDeploymentPromise = Promise.promise();
+		vertx.deployVerticle(new WikiDatabaseVerticle(), dbDeploymentPromise);
+		 
 		Future<String> authDeploymentFuture = dbDeploymentPromise.future().compose(id -> {
 			Promise<String> deployPromise = Promise.promise();
 			vertx.deployVerticle(new AuthInitializerVerticle(), deployPromise);
@@ -35,7 +50,7 @@ public class MainVerticle extends AbstractVerticle{
 			} else {
 				promise.fail(ar.cause());
 			}
-		});
+		});*/
 	}
 	
 	

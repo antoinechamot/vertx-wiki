@@ -6,7 +6,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.vertx.core.AbstractVerticle;
+import io.vertx.reactivex.core.AbstractVerticle;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
@@ -42,7 +42,7 @@ public class AuthInitializerVerticle extends AbstractVerticle implements Databas
 				"insert into user_roles values ('foo', 'writer');", "insert into user_roles values ('bar', 'writer');");
 		
 		
-		 JDBCClient dbClient = JDBCClient.createShared(vertx, new JsonObject()
+		 JDBCClient dbClient = JDBCClient.createShared(vertx.getDelegate(), new JsonObject()
 			      .put("url", config().getString(CONFIG_WIKIDB_JDBC_URL, DEFAULT_WIKIDB_JDBC_URL))
 			      .put("driver_class", config().getString(CONFIG_WIKIDB_JDBC_DRIVER_CLASS, DEFAULT_WIKIDB_JDBC_DRIVER_CLASS))
 			      .put("max_pool_size", config().getInteger(CONFIG_WIKIDB_JDBC_MAX_POOL_SIZE, DEFAULT_JDBC_MAX_POOL_SIZE)));
